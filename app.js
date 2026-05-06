@@ -117,65 +117,61 @@ function setupLayerButtons() {
   });
 }
 
-// ===============================
-// 5. Vessel / Service 선택 UI
-// ===============================
 
-function setupVesselServiceControls() {
-  const vesselSelect = document.getElementById("vesselSelect");
-  const serviceSelect = document.getElementById("serviceSelect");
-
-  if (!vesselSelect || !serviceSelect) return;
-
-  vesselMaster.forEach(vessel => {
-    const option = document.createElement("option");
-    option.value = vessel.code;
-    option.textContent = `${vessel.code} - ${vessel.name}`;
-    vesselSelect.appendChild(option);
-  });
-
-  Object.values(SERVICE_ROUTES).forEach(service => {
-    const option = document.createElement("option");
-    option.value = service.code;
-    option.textContent = `${service.code} - ${service.name}`;
-    serviceSelect.appendChild(option);
-  });
-
-  vesselSelect.addEventListener("change", event => {
-    const vesselCode = event.target.value;
-
-    selectedVessel =
-  vesselMaster.find(vessel => vessel.code === vesselCode) || null;
-
-    updateSelectionStatus();
-
-    // 중요:
-    // 선박을 선택해도 서비스를 자동 선택하지 않습니다.
-    // 서비스는 사용자가 별도로 선택합니다.
-  });
-
-  serviceSelect.addEventListener("change", event => {
-    selectServiceRoute(event.target.value);
-    updateSelectionStatus();
-  });
-}
 
 // ===============================
 // 6. 서비스 Route 선택 및 지도 표시
 // ===============================
 
-function selectServiceRoute(serviceCode) {
-  selectedService = SERVICE_ROUTES[serviceCode] || null;
+async function selectServiceRoute(routeCode) {
+  selectedService = null;
 
   clearServiceRoute();
   clearRouteBasedFutureLayers();
 
-  if (!selectedService) return;
+  if (!routeCode) {
+    updateSelectionStatus();
+    return;
+  }
 
-  showServiceRouteOnMap(selectedService);
+  const routeMeta = serviceRoutes.find(route => route.code === routeCode);
 
-  if (noonReportData) {
-    showRouteBasedFuturePositions(noonReportData);
+  if (!routeMeta) {
+    alert("선택한 Route 정보를 찾을 수 없습니다.");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `/api/route-waypoints?routeCode=${encodeURIComponent(routeCode)}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to load route waypoints");
+    }
+
+    const result = await response.json();
+
+    const points = result.success ? result.data : result.points;
+
+    if (!points || points.length < 2) {
+      alert("선택한 Route의 Waypoint 데이터가 충분하지 않습니다.");
+      return;
+    }
+
+    selectedService = {
+      ...routeMeta,
+      points,
+    };
+
+    showServiceRouteOnMap(selectedService);
+
+    if (noonReportData) {
+      showRouteBasedFuturePositions(noonReportData);
+    }
+  } catch (error) {
+    console.error("Route Waypoint 로딩 오류:", error);
+    alert("Route Waypoint 데이터를 불러오지 못했습니다.");
   }
 }
 
@@ -615,21 +611,66 @@ function updateSelectionStatus(message = "") {
 
 async function loadInitialData() {
   try {
-    const vesselsResponse = await fetch("/api/vessels");
+    const [vesselsResponse, routesResponse] = await Promise.all([
+      fetch("/api/vessels"),
+      fetch("/api/service-routes"),
+    ]);
 
     if (!vesselsResponse.ok) {
       throw new Error("Failed to load vessels");
     }
 
-    const vesselsResult = await vesselsResponse.json();
+    if (!routesResponse.ok) {
+      throw new Error("Failed to load service routes");
+    }
 
-    vesselMaster = vesselsResult.success
-      ? vesselsResult.data
-      : vesselsResult;
+    const vesselsResult = await vesselsResponse.json();
+    const routesResult = await routesResponse.json();
+
+    vesselMaster = vesselsResult.success ? vesselsResult.data : vesselsResult;
+    serviceRoutes = routesResult.success ? routesResult.data : routesResult;
 
     setupVesselServiceControls();
   } catch (error) {
-    console.error("초기 선박 데이터 로딩 오류:", error);
-    alert("선박 데이터를 불러오지 못했습니다. /api/vessels API를 확인하세요.");
+    console.error("초기 데이터 로딩 오류:", error);
+    alert("선박 또는 서비스 Route 데이터를 불러오지 못했습니다. API 상태를 확인하세요.");
   }
+}
+
+function setupVesselServiceControls() {
+  const vesselSelect = document.getElementById("vesselSelect");
+  const serviceSelect = document.getElementById("serviceSelect");
+
+  if (!vesselSelect || !serviceSelect) return;
+
+  vesselSelect.innerHTML = `<option value="">선박을 선택하세요</option>`;
+  serviceSelect.innerHTML = `<option value="">서비스를 선택하세요</option>`;
+
+  vesselMaster.forEach(vessel => {
+    const option = document.createElement("option");
+    option.value = vessel.code;
+    option.textContent = `${vessel.code} - ${vessel.name}`;
+    vesselSelect.appendChild(option);
+  });
+
+  serviceRoutes.forEach(route => {
+    const option = document.createElement("option");
+    option.value = route.code;
+    option.textContent = `${route.code} - ${route.name}`;
+    serviceSelect.appendChild(option);
+  });
+
+  vesselSelect.addEventListener("change", event => {
+    const vesselCode = event.target.value;
+
+    selectedVessel =
+      vesselMaster.find(vessel => vessel.code === vesselCode) || null;
+
+    updateSelectionStatus();
+  });
+
+  serviceSelect.addEventListener("change", event => {
+    selectServiceRoute(event.target.value);
+    updateSelectionStatus();
+  });
 }
