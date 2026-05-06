@@ -24,6 +24,9 @@ let noonReportData = null;
 let selectedVessel = null;
 let selectedService = null;
 
+let vesselMaster = [];
+let serviceRoutes = [];
+
 let activeServiceRouteLine = null;
 let activeServiceWaypointMarkers = [];
 
@@ -41,9 +44,9 @@ windyInit(WINDY_OPTIONS, windyAPI => {
   windyMap = map;
   windyStore = store;
 
-  setupLayerButtons();
-  setupVesselServiceControls();
-  setupNoonReportUpload();
+setupLayerButtons();
+loadInitialData();
+setupNoonReportUpload();
 });
 
 // ===============================
@@ -124,7 +127,7 @@ function setupVesselServiceControls() {
 
   if (!vesselSelect || !serviceSelect) return;
 
-  VESSEL_MASTER.forEach(vessel => {
+  vesselMaster.forEach(vessel => {
     const option = document.createElement("option");
     option.value = vessel.code;
     option.textContent = `${vessel.code} - ${vessel.name}`;
@@ -142,7 +145,7 @@ function setupVesselServiceControls() {
     const vesselCode = event.target.value;
 
     selectedVessel =
-      VESSEL_MASTER.find(vessel => vessel.code === vesselCode) || null;
+  vesselMaster.find(vessel => vessel.code === vesselCode) || null;
 
     updateSelectionStatus();
 
@@ -342,7 +345,7 @@ function autoSelectVesselByNoonReport(report) {
 
   const reportVesselName = normalizeName(report.vessel);
 
-  const matchedVessel = VESSEL_MASTER.find(vessel => {
+  const matchedVessel = vesselMaster.find(vessel => {
     return normalizeName(vessel.name) === reportVesselName;
   });
 
@@ -487,9 +490,9 @@ function resolveSpeedKnots(report) {
     return report.distance / 24;
   }
 
-  if (selectedVessel && Number.isFinite(selectedVessel.defaultSpeed)) {
-    return selectedVessel.defaultSpeed;
-  }
+  if (selectedVessel && Number.isFinite(Number(selectedVessel.defaultSpeed))) {
+  return Number(selectedVessel.defaultSpeed);
+}
 
   return NaN;
 }
@@ -607,5 +610,26 @@ function updateSelectionStatus(message = "") {
       ${message ? `<span style="color:#facc15;">${message}</span><br><br>` : ""}
       Noon Report를 업로드하면 현재 위치가 표시됩니다.
     `;
+  }
+}
+
+async function loadInitialData() {
+  try {
+    const vesselsResponse = await fetch("/api/vessels");
+
+    if (!vesselsResponse.ok) {
+      throw new Error("Failed to load vessels");
+    }
+
+    const vesselsResult = await vesselsResponse.json();
+
+    vesselMaster = vesselsResult.success
+      ? vesselsResult.data
+      : vesselsResult;
+
+    setupVesselServiceControls();
+  } catch (error) {
+    console.error("초기 선박 데이터 로딩 오류:", error);
+    alert("선박 데이터를 불러오지 못했습니다. /api/vessels API를 확인하세요.");
   }
 }
