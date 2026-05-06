@@ -3,7 +3,7 @@
 // ===============================
 
 const WINDY_OPTIONS = {
-  key: "ZubTMFcvKH87utliHssmxu0MzssuX6oI",
+  key: "zlZR4OOSIWDCBr1Ca0WnCdyRTfVJviqY",
   lat: 24.5,
   lon: 125.0,
   zoom: 5,
