@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Vessel Windy Monitor</title>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Windy Map Forecast API는 Leaflet 1.4.0 사용 -->
+  <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+  <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+  <div class="brand">
+    <div class="brand-icon">🌊</div>
+    <div>
+      <h1>Vessel Weather Monitor</h1>
+      <p>Windy 기반 선박 기상 모니터링</p>
+    </div>
+  </div>
+
+  <section class="panel">
+    <h2>Vessel / Service</h2>
+
+    <label class="form-label">Vessel</label>
+    <select id="vesselSelect">
+      <option value="">선박을 선택하세요</option>
+    </select>
+
+    <label class="form-label">Service Route</label>
+    <select id="serviceSelect">
+      <option value="">서비스를 선택하세요</option>
+    </select>
+  </section>
+
+  <section class="panel">
+    <h2>Weather Layer</h2>
+
+    <div class="layer-buttons">
+      <button data-overlay="wind" class="active">Wind</button>
+      <button data-overlay="waves">Waves</button>
+      <button data-overlay="rain">Rain</button>
+      <button data-overlay="pressure">Pressure</button>
+    </div>
+
+    <div id="weatherLayerStatus" class="upload-status">
+      Current Layer: Wind
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Noon Report</h2>
+
+    <input 
+      type="file" 
+      id="noonReportInput" 
+      accept=".msg,.txt,.eml" 
+    />
+
+    <div id="noonReportStatus" class="upload-status">
+      Noon Report 파일을 업로드하세요.
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Selected Vessel</h2>
+    <div id="vesselInfo" class="vessel-info">
+      선박과 서비스를 선택하거나 Noon Report를 업로드하세요.
+    </div>
+  </section>
+</aside>
+
+    <main class="map-area">
+      <div id="windy"></div>
+    </main>
+  </div>
+
+<script src="route-data.js"></script>
+<script src="route-math.js"></script>
+<script src="noon-parser.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
