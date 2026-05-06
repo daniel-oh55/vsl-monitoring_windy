@@ -14,6 +14,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({
       success: false,
       message: "routeCode is required",
+      example: "/api/route-waypoints?routeCode=KST_FULL_ROTATION",
     });
   }
 
@@ -30,7 +31,7 @@ module.exports = async function handler(req, res) {
         waypoint_name AS "name",
         lat::float AS lat,
         lon::float AS lon,
-        leg_name AS leg,
+        leg_name AS "leg",
         remarks
       FROM route_waypoints
       WHERE route_code = ${routeCode}
@@ -40,6 +41,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       success: true,
       routeCode,
+      count: waypoints.length,
       data: waypoints,
     });
   } catch (error) {
@@ -48,6 +50,7 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch route waypoints",
+      routeCode,
       error: error.message,
     });
   }
