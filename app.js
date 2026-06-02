@@ -34,6 +34,8 @@ let routeSnapMarker = null;
 let routeFutureMarkers = [];
 let routeFutureLine = null;
 
+let aisPositionMarkers = [];
+
 // ===============================
 // 3. Windy 지도 초기화
 // ===============================
@@ -47,6 +49,9 @@ windyInit(WINDY_OPTIONS, windyAPI => {
 setupLayerButtons();
 loadInitialData();
 setupNoonReportUpload();
+setupAisPositionControls();
+loadAisPositions();
+setInterval(loadAisPositions, 60000);
 });
 
 // ===============================
@@ -230,6 +235,130 @@ function clearServiceRoute() {
   });
 
   activeServiceWaypointMarkers = [];
+}
+
+async function loadAisPositions() {
+  const aisStatus = document.getElementById("aisStatus");
+
+  if (!windyMap) {
+    return;
+  }
+
+  try {
+    if (aisStatus) {
+      aisStatus.innerHTML = "Loading AIS positions...";
+    }
+
+    const response = await fetch("/api/vessel-positions");
+
+    if (!response.ok) {
+      throw new Error("Failed to load AIS positions");
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.message || "Failed to load AIS positions");
+    }
+
+    clearAisPositionMarkers();
+
+    const positions = Array.isArray(result.data) ? result.data : [];
+    const validPositions = positions.filter(position => {
+      return Number.isFinite(Number(position.lat)) && Number.isFinite(Number(position.lon));
+    });
+
+    validPositions.forEach(position => {
+      const lat = Number(position.lat);
+      const lon = Number(position.lon);
+      const marker = L.circleMarker([lat, lon], {
+        radius: 8,
+        color: "#ffffff",
+        fillColor: "#a855f7",
+        fillOpacity: 0.9,
+        weight: 2,
+      })
+        .addTo(windyMap)
+        .bindPopup(`
+          <b>${escapeHtml(position.name || position.mmsi || "AIS Vessel")}</b><br>
+          Source: AISStream<br>
+          MMSI: ${escapeHtml(position.mmsi || "-")}<br>
+          Position: ${formatNumber(lat, 5)}, ${formatNumber(lon, 5)}<br>
+          SOG: ${formatNumber(position.sog, 1)} kt<br>
+          COG: ${formatNumber(position.cog, 0)} deg<br>
+          Heading: ${formatNumber(position.heading, 0)} deg<br>
+          Last AIS: ${formatDateTime(position.positionTime)}<br>
+          Received: ${formatDateTime(position.receivedAt)}
+        `);
+
+      aisPositionMarkers.push(marker);
+    });
+
+    if (aisStatus) {
+      const refreshedAt = new Date().toLocaleTimeString();
+      aisStatus.innerHTML = `
+        AIS positions: ${validPositions.length}<br>
+        Last refresh: ${refreshedAt}
+      `;
+    }
+  } catch (error) {
+    console.error("AIS position loading error:", error);
+
+    if (aisStatus) {
+      aisStatus.innerHTML = `
+        AIS positions could not be loaded.<br>
+        ${escapeHtml(error.message)}
+      `;
+    }
+  }
+}
+
+function clearAisPositionMarkers() {
+  if (!windyMap) {
+    aisPositionMarkers = [];
+    return;
+  }
+
+  aisPositionMarkers.forEach(marker => {
+    windyMap.removeLayer(marker);
+  });
+
+  aisPositionMarkers = [];
+}
+
+function setupAisPositionControls() {
+  const refreshAisButton = document.getElementById("refreshAisButton");
+
+  if (!refreshAisButton) {
+    return;
+  }
+
+  refreshAisButton.addEventListener("click", () => {
+    loadAisPositions();
+  });
+}
+
+function formatNumber(value, decimals) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(decimals) : "-";
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // ===============================

@@ -1,0 +1,6 @@
+.env
+.env.local
+ais-collector/.env
+node_modules/
+ais-collector/node_modules/
+.vercel/

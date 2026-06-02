@@ -1,0 +1,13 @@
+{
+  "name": "ais-collector",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node ais-collector.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "ws": "^8.18.0"
+  }
+}
