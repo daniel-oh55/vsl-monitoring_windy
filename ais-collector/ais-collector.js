@@ -8,6 +8,7 @@ const RECONNECT_DELAY_MS = 10000;
 const WORLD_BOUNDING_BOX = [[[-90, -180], [90, 180]]];
 
 const { AISSTREAM_API_KEY, DATABASE_URL, AIS_MMSI_LIST } = process.env;
+const { AIS_BOUNDING_BOX } = process.env;
 
 if (!AISSTREAM_API_KEY) {
   throw new Error("AISSTREAM_API_KEY is not set");
@@ -22,12 +23,14 @@ const mmsiList = String(AIS_MMSI_LIST || "")
   .map(value => value.trim())
   .filter(Boolean);
 
-if (mmsiList.length === 0) {
-  throw new Error("AIS_MMSI_LIST must contain at least one MMSI");
-}
-
 if (mmsiList.length > 50) {
   throw new Error("AIS_MMSI_LIST supports up to 50 MMSI values");
+}
+
+const boundingBoxes = parseBoundingBoxes(AIS_BOUNDING_BOX);
+
+if (mmsiList.length === 0 && !AIS_BOUNDING_BOX) {
+  throw new Error("Set AIS_MMSI_LIST, or set a narrow AIS_BOUNDING_BOX for test mode");
 }
 
 const sql = neon(DATABASE_URL);
@@ -38,14 +41,23 @@ function connect() {
   const socket = new WebSocket(AISSTREAM_URL);
 
   socket.on("open", () => {
-    console.log(`[AIS] Connected. Subscribing to ${mmsiList.length} MMSI values.`);
+    console.log(
+      mmsiList.length > 0
+        ? `[AIS] Connected. Subscribing to ${mmsiList.length} MMSI values.`
+        : "[AIS] Connected. Test mode without MMSI filter."
+    );
 
-    socket.send(JSON.stringify({
+    const subscription = {
       APIKey: AISSTREAM_API_KEY,
-      BoundingBoxes: WORLD_BOUNDING_BOX,
-      FiltersShipMMSI: mmsiList,
+      BoundingBoxes: boundingBoxes,
       FilterMessageTypes: ["PositionReport"],
-    }));
+    };
+
+    if (mmsiList.length > 0) {
+      subscription.FiltersShipMMSI = mmsiList;
+    }
+
+    socket.send(JSON.stringify(subscription));
   });
 
   socket.on("message", async rawMessage => {
@@ -170,6 +182,31 @@ function nullableNumber(value) {
 function toInteger(value) {
   const number = Number(value);
   return Number.isInteger(number) ? number : null;
+}
+
+function parseBoundingBoxes(value) {
+  if (!value) {
+    return WORLD_BOUNDING_BOX;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+  } catch (error) {
+    const parts = value.split(",").map(part => Number(part.trim()));
+
+    if (parts.length === 4 && parts.every(Number.isFinite)) {
+      const [south, west, north, east] = parts;
+      return [[[south, west], [north, east]]];
+    }
+  }
+
+  throw new Error(
+    "AIS_BOUNDING_BOX must be JSON like [[[34,126],[35,127]]] or CSV like 34,126,35,127"
+  );
 }
 
 function parsePositionTime(value) {

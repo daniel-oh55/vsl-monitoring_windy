@@ -22,4 +22,13 @@ npm start
 6. Vercel exposes the latest rows through `/api/vessel-positions`.
 7. The main page can refresh AIS positions manually, and it also refreshes every 60 seconds after the Windy map initializes.
 
+If vessel MMSI values are not available yet, use a narrow test bounding box instead of `AIS_MMSI_LIST`.
+
+```env
+AIS_MMSI_LIST=
+AIS_BOUNDING_BOX=34.5,128.5,35.5,129.5
+```
+
+`AIS_BOUNDING_BOX` accepts either `south,west,north,east` CSV or JSON such as `[[[34.5,128.5],[35.5,129.5]]]`. Keep the area small for tests.
+
 AISStream is a beta service and does not guarantee reception or SLA. If AIS positions are not available, the existing Noon Report, route line, and +24H/+48H estimation features remain the fallback.
