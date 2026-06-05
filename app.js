@@ -189,10 +189,17 @@ function showServiceRouteOnMap(service) {
   const routeSegments = buildRouteSegmentsByBound(service.points);
 
   routeSegments.forEach(segment => {
+    const haloLine = L.polyline(segment.latLngs, {
+      color: "#0f172a",
+      weight: 8,
+      opacity: 0.72,
+      interactive: false,
+    }).addTo(windyMap);
+
     const line = L.polyline(segment.latLngs, {
       color: getRouteBoundColor(segment.bound),
-      weight: 4,
-      opacity: 0.92,
+      weight: 4.5,
+      opacity: 0.96,
     })
       .addTo(windyMap)
       .bindPopup(`
@@ -201,6 +208,7 @@ function showServiceRouteOnMap(service) {
         Leg: ${segment.leg || "-"}
       `);
 
+    activeServiceRouteLines.push(haloLine);
     activeServiceRouteLines.push(line);
   });
 
@@ -214,10 +222,10 @@ function showServiceRouteOnMap(service) {
     if (isFirst || isLast || hasName) {
       const marker = L.circleMarker([point.lat, point.lon], {
         radius: isFirst || isLast ? 6 : 4,
-        color,
+        color: "#ffffff",
         fillColor: color,
-        fillOpacity: 0.9,
-        weight: 2,
+        fillOpacity: 0.96,
+        weight: 2.5,
       })
         .addTo(windyMap)
         .bindPopup(`
@@ -312,14 +320,14 @@ function resolveRouteBound(legName) {
 
 function getRouteBoundColor(bound) {
   if (bound === "N BOUND") {
-    return "#f97316";
+    return "#22d3ee";
   }
 
   if (bound === "S BOUND") {
-    return "#22c55e";
+    return "#fb477e";
   }
 
-  return "#38bdf8";
+  return "#fbbf24";
 }
 
 async function loadAisPositions() {
