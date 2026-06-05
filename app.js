@@ -289,6 +289,7 @@ function resolveRouteBound(legName) {
   const leg = String(legName || "").toUpperCase();
 
   if (
+    leg.startsWith("NB_") ||
     leg.includes("IDJKT-IDSRG") ||
     leg.includes("IDSRG-THLCH") ||
     leg.includes("THLCH-CNSHA") ||
@@ -298,6 +299,7 @@ function resolveRouteBound(legName) {
   }
 
   if (
+    leg.startsWith("SB_") ||
     leg.includes("KRPUS-KRKAN") ||
     leg.includes("KRKAN-CNSHA") ||
     leg.includes("CNSHA-IDJKT")
