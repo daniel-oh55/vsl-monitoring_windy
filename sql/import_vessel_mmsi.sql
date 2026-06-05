@@ -1,4 +1,6 @@
 INSERT INTO vessels (code, name, mmsi, is_active)
+SELECT code, name, mmsi, TRUE
+FROM (
 VALUES
   ('ATPR', 'ATLANTIC PIONEER', '563155300'),
   ('ATSH', 'ATLANTIC SOUTH', '563158200'),
@@ -59,6 +61,7 @@ VALUES
   ('YKTD', 'YOKOHAMA TRADER', '538009586'),
   ('YSVY', 'YEOSU VOYAGER', '352002971'),
   ('YTTR', 'YANGTZE TRADER', '538009820')
+) AS data(code, name, mmsi)
 ON CONFLICT (code) DO UPDATE
 SET
   name = EXCLUDED.name,
