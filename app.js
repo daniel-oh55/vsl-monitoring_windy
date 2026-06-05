@@ -27,7 +27,7 @@ let selectedService = null;
 let vesselMaster = [];
 let serviceRoutes = [];
 
-let activeServiceRouteLine = null;
+let activeServiceRouteLines = [];
 let activeServiceWaypointMarkers = [];
 
 let routeSnapMarker = null;
@@ -186,24 +186,36 @@ function showServiceRouteOnMap(service) {
     return;
   }
 
-  const latLngs = service.points.map(point => [point.lat, point.lon]);
+  const routeSegments = buildRouteSegmentsByBound(service.points);
 
-  activeServiceRouteLine = L.polyline(latLngs, {
-    color: "#22c55e",
-    weight: 3,
-    opacity: 0.9,
-  }).addTo(windyMap);
+  routeSegments.forEach(segment => {
+    const line = L.polyline(segment.latLngs, {
+      color: getRouteBoundColor(segment.bound),
+      weight: 4,
+      opacity: 0.92,
+    })
+      .addTo(windyMap)
+      .bindPopup(`
+        <b>${service.code}</b><br>
+        Bound: ${segment.bound}<br>
+        Leg: ${segment.leg || "-"}
+      `);
+
+    activeServiceRouteLines.push(line);
+  });
 
   service.points.forEach((point, index) => {
     const isFirst = index === 0;
     const isLast = index === service.points.length - 1;
     const hasName = point.name && point.name.length > 0;
+    const bound = resolveRouteBound(point.leg);
+    const color = getRouteBoundColor(bound);
 
     if (isFirst || isLast || hasName) {
       const marker = L.circleMarker([point.lat, point.lon], {
         radius: isFirst || isLast ? 6 : 4,
-        color: "#22c55e",
-        fillColor: "#22c55e",
+        color,
+        fillColor: color,
         fillOpacity: 0.9,
         weight: 2,
       })
@@ -211,6 +223,8 @@ function showServiceRouteOnMap(service) {
         .bindPopup(`
           <b>${point.name || "Waypoint"}</b><br>
           Service: ${service.code}<br>
+          Bound: ${bound}<br>
+          Leg: ${point.leg || "-"}<br>
           WPT: ${index + 1}<br>
           ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}
         `);
@@ -219,22 +233,91 @@ function showServiceRouteOnMap(service) {
     }
   });
 
-  windyMap.fitBounds(activeServiceRouteLine.getBounds(), {
-    padding: [40, 40],
-  });
+  if (activeServiceRouteLines.length > 0) {
+    const routeLayerGroup = L.featureGroup(activeServiceRouteLines);
+
+    windyMap.fitBounds(routeLayerGroup.getBounds(), {
+      padding: [40, 40],
+    });
+  }
 }
 
 function clearServiceRoute() {
-  if (activeServiceRouteLine) {
-    windyMap.removeLayer(activeServiceRouteLine);
-    activeServiceRouteLine = null;
-  }
+  activeServiceRouteLines.forEach(line => {
+    windyMap.removeLayer(line);
+  });
+
+  activeServiceRouteLines = [];
 
   activeServiceWaypointMarkers.forEach(marker => {
     windyMap.removeLayer(marker);
   });
 
   activeServiceWaypointMarkers = [];
+}
+
+function buildRouteSegmentsByBound(points) {
+  const segments = [];
+  let currentSegment = null;
+
+  for (let index = 0; index < points.length - 1; index++) {
+    const point = points[index];
+    const nextPoint = points[index + 1];
+    const bound = resolveRouteBound(point.leg);
+    const leg = point.leg || "";
+
+    if (
+      !currentSegment ||
+      currentSegment.bound !== bound ||
+      currentSegment.leg !== leg
+    ) {
+      currentSegment = {
+        bound,
+        leg,
+        latLngs: [[point.lat, point.lon]],
+      };
+      segments.push(currentSegment);
+    }
+
+    currentSegment.latLngs.push([nextPoint.lat, nextPoint.lon]);
+  }
+
+  return segments.filter(segment => segment.latLngs.length >= 2);
+}
+
+function resolveRouteBound(legName) {
+  const leg = String(legName || "").toUpperCase();
+
+  if (
+    leg.includes("IDJKT-IDSRG") ||
+    leg.includes("IDSRG-THLCH") ||
+    leg.includes("THLCH-CNSHA") ||
+    leg.includes("CNSHA-KRPUS")
+  ) {
+    return "N BOUND";
+  }
+
+  if (
+    leg.includes("KRPUS-KRKAN") ||
+    leg.includes("KRKAN-CNSHA") ||
+    leg.includes("CNSHA-IDJKT")
+  ) {
+    return "S BOUND";
+  }
+
+  return "ROUTE";
+}
+
+function getRouteBoundColor(bound) {
+  if (bound === "N BOUND") {
+    return "#f97316";
+  }
+
+  if (bound === "S BOUND") {
+    return "#22c55e";
+  }
+
+  return "#38bdf8";
 }
 
 async function loadAisPositions() {
