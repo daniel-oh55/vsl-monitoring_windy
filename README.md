@@ -32,3 +32,22 @@ AIS_BOUNDING_BOX=34.5,128.5,35.5,129.5
 `AIS_BOUNDING_BOX` accepts either `south,west,north,east` CSV or JSON such as `[[[34.5,128.5],[35.5,129.5]]]`. Keep the area small for tests.
 
 AISStream is a beta service and does not guarantee reception or SLA. If AIS positions are not available, the existing Noon Report, route line, and +24H/+48H estimation features remain the fallback.
+
+## Data Docked location polling
+
+Data Docked can be used as a REST-based AIS source for the active MMSI values stored in the `vessels` table.
+
+```bash
+cd ais-collector
+npm run datadocked
+```
+
+Set these values in `ais-collector/.env`:
+
+```env
+DATABASE_URL=your_neon_database_url
+DATADOCKED_API_KEY=your_datadocked_api_key
+DATADOCKED_POLL_INTERVAL_MS=
+```
+
+With `DATADOCKED_POLL_INTERVAL_MS` empty, the collector runs once and exits. Set it to a value such as `600000` for a 10-minute polling loop. Data Docked bulk location requests support up to 50 identifiers per call, so the collector automatically splits larger vessel lists.

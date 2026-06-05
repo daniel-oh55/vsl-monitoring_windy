@@ -281,7 +281,7 @@ async function loadAisPositions() {
         .addTo(windyMap)
         .bindPopup(`
           <b>${escapeHtml(position.name || position.mmsi || "AIS Vessel")}</b><br>
-          Source: AISStream<br>
+          Source: ${escapeHtml(position.source || "AIS")}<br>
           MMSI: ${escapeHtml(position.mmsi || "-")}<br>
           Position: ${formatNumber(lat, 5)}, ${formatNumber(lon, 5)}<br>
           SOG: ${formatNumber(position.sog, 1)} kt<br>

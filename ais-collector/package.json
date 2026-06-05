@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node ais-collector.js"
+    "start": "node ais-collector.js",
+    "datadocked": "node datadocked-collector.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",
