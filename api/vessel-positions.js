@@ -29,8 +29,9 @@ module.exports = async function handler(req, res) {
         lvp.position_time AS "positionTime",
         lvp.received_at AS "receivedAt"
       FROM latest_vessel_positions lvp
-      LEFT JOIN vessels v
+      INNER JOIN vessels v
         ON v.mmsi = lvp.mmsi
+       AND v.is_active = TRUE
       ORDER BY lvp.received_at DESC
     `;
 

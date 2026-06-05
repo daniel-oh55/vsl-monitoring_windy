@@ -22,29 +22,28 @@ const mmsiList = String(AIS_MMSI_LIST || "")
   .split(",")
   .map(value => value.trim())
   .filter(Boolean);
+const uniqueMmsiList = Array.from(new Set(mmsiList));
 
-if (mmsiList.length > 50) {
-  throw new Error("AIS_MMSI_LIST supports up to 50 MMSI values");
+if (uniqueMmsiList.length > 50) {
+  console.log(`[AIS] AIS_MMSI_LIST has ${uniqueMmsiList.length} unique values. Splitting into 50-MMSI subscriptions.`);
 }
 
 const boundingBoxes = parseBoundingBoxes(AIS_BOUNDING_BOX);
 
-if (mmsiList.length === 0 && !AIS_BOUNDING_BOX) {
+if (uniqueMmsiList.length === 0 && !AIS_BOUNDING_BOX) {
   throw new Error("Set AIS_MMSI_LIST, or set a narrow AIS_BOUNDING_BOX for test mode");
 }
 
 const sql = neon(DATABASE_URL);
 
-let reconnectTimer = null;
-
-function connect() {
+function connect(subscriptionMmsiList, connectionIndex) {
   const socket = new WebSocket(AISSTREAM_URL);
 
   socket.on("open", () => {
     console.log(
-      mmsiList.length > 0
-        ? `[AIS] Connected. Subscribing to ${mmsiList.length} MMSI values.`
-        : "[AIS] Connected. Test mode without MMSI filter."
+      subscriptionMmsiList.length > 0
+        ? `[AIS] Connected #${connectionIndex}. Subscribing to ${subscriptionMmsiList.length} MMSI values.`
+        : `[AIS] Connected #${connectionIndex}. Test mode without MMSI filter.`
     );
 
     const subscription = {
@@ -53,8 +52,8 @@ function connect() {
       FilterMessageTypes: ["PositionReport"],
     };
 
-    if (mmsiList.length > 0) {
-      subscription.FiltersShipMMSI = mmsiList;
+    if (subscriptionMmsiList.length > 0) {
+      subscription.FiltersShipMMSI = subscriptionMmsiList;
     }
 
     socket.send(JSON.stringify(subscription));
@@ -75,12 +74,12 @@ function connect() {
   });
 
   socket.on("close", (code, reason) => {
-    console.error(`[AIS] WebSocket closed: ${code} ${reason || ""}`);
-    scheduleReconnect();
+    console.error(`[AIS] WebSocket #${connectionIndex} closed: ${code} ${reason || ""}`);
+    scheduleReconnect(subscriptionMmsiList, connectionIndex);
   });
 
   socket.on("error", error => {
-    console.error("[AIS] WebSocket error:", error.message);
+    console.error(`[AIS] WebSocket #${connectionIndex} error:`, error.message);
   });
 }
 
@@ -151,14 +150,9 @@ async function savePositionReport(message) {
   console.log(`[AIS] ${mmsi} ${vesselCode || "-"} ${lat.toFixed(6)},${lon.toFixed(6)}`);
 }
 
-function scheduleReconnect() {
-  if (reconnectTimer) {
-    return;
-  }
-
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-    connect();
+function scheduleReconnect(subscriptionMmsiList, connectionIndex) {
+  setTimeout(() => {
+    connect(subscriptionMmsiList, connectionIndex);
   }, RECONNECT_DELAY_MS);
 }
 
@@ -218,4 +212,18 @@ function parsePositionTime(value) {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
-connect();
+function chunkList(values, chunkSize) {
+  const chunks = [];
+
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize));
+  }
+
+  return chunks;
+}
+
+const subscriptionChunks = uniqueMmsiList.length > 0 ? chunkList(uniqueMmsiList, 50) : [[]];
+
+subscriptionChunks.forEach((chunk, index) => {
+  connect(chunk, index + 1);
+});

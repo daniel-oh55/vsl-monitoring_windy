@@ -1,0 +1,1 @@
+TRUNCATE TABLE vessel_positions RESTART IDENTITY;
