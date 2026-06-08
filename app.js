@@ -265,36 +265,43 @@ function clearServiceRoute() {
 }
 
 function buildRouteSegmentsByBound(points) {
-  const segments = [];
-  let currentSegment = null;
+  const segmentMap = new Map();
 
-  for (let index = 0; index < points.length - 1; index++) {
-    const point = points[index];
-    const nextPoint = points[index + 1];
+  points.forEach(point => {
     const bound = resolveRouteBound(point.leg);
     const leg = point.leg || "";
+    const key = `${bound}::${leg}`;
 
-    if (
-      !currentSegment ||
-      currentSegment.bound !== bound ||
-      currentSegment.leg !== leg
-    ) {
-      currentSegment = {
+    if (!segmentMap.has(key)) {
+      segmentMap.set(key, {
         bound,
         leg,
-        latLngs: [[point.lat, point.lon]],
-      };
-      segments.push(currentSegment);
+        latLngs: [],
+      });
     }
 
-    currentSegment.latLngs.push([nextPoint.lat, nextPoint.lon]);
-  }
+    segmentMap.get(key).latLngs.push([point.lat, point.lon]);
+  });
 
-  return segments.filter(segment => segment.latLngs.length >= 2);
+  return Array.from(segmentMap.values()).filter(segment => segment.latLngs.length >= 2);
 }
 
 function resolveRouteBound(legName) {
   const leg = String(legName || "").toUpperCase();
+
+  if (
+    leg.includes("_WB_") ||
+    leg.startsWith("WB_")
+  ) {
+    return "WEST BOUND";
+  }
+
+  if (
+    leg.includes("_EB_") ||
+    leg.startsWith("EB_")
+  ) {
+    return "EAST BOUND";
+  }
 
   if (
     leg.startsWith("NB_") ||
@@ -319,6 +326,14 @@ function resolveRouteBound(legName) {
 }
 
 function getRouteBoundColor(bound) {
+  if (bound === "WEST BOUND") {
+    return "#c084fc";
+  }
+
+  if (bound === "EAST BOUND") {
+    return "#2dd4bf";
+  }
+
   if (bound === "N BOUND") {
     return "#22d3ee";
   }
